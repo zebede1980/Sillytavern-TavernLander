@@ -46,3 +46,4 @@ https://github.com/ayvencore/Sillytavern-Another-Character-Library
 - The library favourites are separate from SillyTavern's built-in favourites.
 - Edit-mode saves are defensive: the extension updates local overrides and also attempts to call compatible SillyTavern save APIs.
 - SillyTavern internals can vary by version, so the `Open in ST` bridge may still need small selector adjustments after live testing.
+- Inspired by ST Character Library by Reaper meets Landing Page by Len with my own twists, ideas, and requirements.
