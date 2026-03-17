@@ -5,7 +5,6 @@ A SillyTavern extension that replaces the default landing page with a rich chara
 ## Disclaimers
 
 - This project is vibe coded.
-- Mobile support is not working properly yet.
 
 ## Features
 
@@ -14,12 +13,14 @@ A SillyTavern extension that replaces the default landing page with a rich chara
 - Sorts by `A-Z`, `Z-A`, `Recently Added`, `Added First`, and `Recently Chatted`.
 - Provides `All Characters` and `Favourite Characters` library tabs.
 - Supports page-size controls for `12`, `24`, `48`, and `96`.
+- Mobile UI friendly!
 - Uses SillyTavern's built-in tag system for card display and edit-mode tag assignment.
 - Shows card avatars, titles, Creator's Notes previews, built-in tag badges, a favourite star badge, and a card menu with `Favourite`, `Edit`, and `Delete`.
 - Opens a detail modal with a larger image, first message, personality, built-in tags, creator link, quick chat, `Open in ST`, favourite, and delete actions.
 - Includes an edit tab for Creator's Notes, creator name, version, creator link, first message, personality, and built-in tag assignment.
 - Uses a separate favourites system from SillyTavern's built-in favourites, so you can keep an even smaller personal shortlist there.
 - Adapts styling from SillyTavern theme variables.
+- Displays tokens at the bottom of cards
 
 ## Images (Fresh ST install VS custom w/theme)
 
