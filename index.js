@@ -629,30 +629,18 @@ function renderCard(character) {
     `;
 }
 
-function getCharacterTokenSource(character, context = getContextSafe()) {
+function getCharacterTokenSource(character) {
     const sourceCharacter = character?.raw ?? character;
-
-    if (typeof context?.getCharacterCardFields === 'function') {
-        try {
-            const fields = context.getCharacterCardFields(sourceCharacter);
-            if (fields && typeof fields === 'object') {
-                const fieldText = Object.values(fields)
-                    .flatMap((value) => Array.isArray(value) ? value : [value])
-                    .map((value) => stripHtml(String(value ?? '')))
-                    .filter(Boolean)
-                    .join('\n');
-                if (fieldText) {
-                    return fieldText;
-                }
-            }
-        } catch (error) {
-            log('Could not read native character card fields for token count', error);
-        }
-    }
-
     const data = sourceCharacter?.data ?? {};
-    return [
-        sourceCharacter?.name,
+    const rawSections = [
+        character?.name,
+        character?.description,
+        character?.personality,
+        character?.firstMessage,
+        character?.creator,
+        character?.version,
+        character?.creatorLink,
+        ...(Array.isArray(character?.tags) ? character.tags.map((tag) => tag?.name) : []),
         data?.creator_notes,
         data?.description,
         data?.personality,
@@ -660,13 +648,30 @@ function getCharacterTokenSource(character, context = getContextSafe()) {
         data?.scenario,
         data?.mes_example,
         data?.first_mes,
+        ...(Array.isArray(data?.alternate_greetings) ? data.alternate_greetings : []),
+        data?.system_prompt,
+        data?.post_history_instructions,
         sourceCharacter?.description,
         sourceCharacter?.personality,
         sourceCharacter?.first_mes,
-    ]
-        .map((value) => stripHtml(String(value ?? '')))
-        .filter(Boolean)
-        .join('\n');
+        sourceCharacter?.scenario,
+        sourceCharacter?.mes_example,
+    ];
+
+    const uniqueSections = new Set();
+    const tokenSections = [];
+    for (const value of rawSections) {
+        const normalized = stripHtml(String(value ?? ''));
+        const key = normalized.toLowerCase();
+        if (!normalized || uniqueSections.has(key)) {
+            continue;
+        }
+
+        uniqueSections.add(key);
+        tokenSections.push(normalized);
+    }
+
+    return tokenSections.join('\n');
 }
 
 function updateTokenCountDisplay(characterKey, tokenCount) {
@@ -695,7 +700,7 @@ async function queueVisibleTokenCounts(characters, context = getContextSafe()) {
             continue;
         }
 
-        const tokenSource = getCharacterTokenSource(character, context);
+        const tokenSource = getCharacterTokenSource(character);
         if (!tokenSource) {
             updateTokenCountDisplay(character.key, 0);
             continue;
