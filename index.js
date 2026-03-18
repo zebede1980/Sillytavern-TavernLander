@@ -633,29 +633,16 @@ function getCharacterTokenSource(character) {
     const sourceCharacter = character?.raw ?? character;
     const data = sourceCharacter?.data ?? {};
     const rawSections = [
-        character?.name,
-        character?.description,
         character?.personality,
         character?.firstMessage,
-        character?.creator,
-        character?.version,
-        character?.creatorLink,
-        ...(Array.isArray(character?.tags) ? character.tags.map((tag) => tag?.name) : []),
-        data?.creator_notes,
         data?.description,
         data?.personality,
         data?.char_persona,
-        data?.scenario,
-        data?.mes_example,
         data?.first_mes,
-        ...(Array.isArray(data?.alternate_greetings) ? data.alternate_greetings : []),
-        data?.system_prompt,
-        data?.post_history_instructions,
         sourceCharacter?.description,
         sourceCharacter?.personality,
         sourceCharacter?.first_mes,
-        sourceCharacter?.scenario,
-        sourceCharacter?.mes_example,
+        sourceCharacter?.char_persona,
     ];
 
     const uniqueSections = new Set();
