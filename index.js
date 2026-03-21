@@ -286,7 +286,6 @@ function normalizeCharacters(context) {
 
     return source.map((character, index) => {
         const key = buildCharacterKey(character, index);
-        const override = readOverride(key);
         const tagIds = tagMap?.[key] ?? tagMap?.[character?.avatar] ?? tagMap?.[character?.name] ?? [];
         const tags = Array.isArray(tagIds)
             ? tagIds
@@ -300,11 +299,11 @@ function normalizeCharacters(context) {
                 }))
             : [];
         const name = normalizeString(character?.name) || 'Untitled Character';
-        const description = normalizeString(override.description ?? findCreatorNotes(character));
-        const creator = normalizeString(override.creator ?? getCreatorName(character));
-        const version = normalizeString(override.version ?? getCharacterVersion(character));
-        const firstMessage = normalizeString(override.firstMessage ?? getFirstMessage(character));
-        const personality = normalizeString(override.personality ?? getPersonality(character));
+        const description = findCreatorNotes(character);
+        const creator = getCreatorName(character);
+        const version = getCharacterVersion(character);
+        const firstMessage = getFirstMessage(character);
+        const personality = getPersonality(character);
 
         return {
             key,
@@ -320,7 +319,7 @@ function normalizeCharacters(context) {
             avatar: getAvatarUrl(character, context),
             tags,
             favorite: Boolean(settings.favorites?.[key] ?? character?.data?.extensions?.fav ?? character?.fav),
-            creatorLink: normalizeString(override.creatorLink ?? getCreatorLink(key, character)),
+            creatorLink: getCreatorLink(key, character),
             tokenCount: Number.isFinite(state.tokenCounts[key]) ? state.tokenCounts[key] : null,
             addedAt: Math.max(
                 toEpoch(character?.create_date),
@@ -1817,8 +1816,8 @@ async function saveEditForm(form) {
             return;
         }
 
-        settings.overrides[characterKey] = override;
-        settings.creatorLinks[characterKey] = override.creatorLink;
+        delete settings.overrides[characterKey];
+        delete settings.creatorLinks[characterKey];
         upsertBuiltInTags(characterKey, tagNames);
         delete state.tokenCounts[characterKey];
         state.tokenCountPending.delete(characterKey);
@@ -1848,6 +1847,7 @@ function registerGlobalHooks() {
     const rerenderEvents = [
         eventTypes.CHAT_CHANGED,
         eventTypes.CHARACTER_SELECTED,
+        eventTypes.CHARACTER_EDITED,
         eventTypes.CHARACTER_DELETED,
         eventTypes.CHARACTER_CREATED,
         eventTypes.APP_READY,
