@@ -39,6 +39,12 @@ Install it through SillyTavern's built-in extension installer from the repositor
 https://github.com/ayvencore/Sillytavern-Another-Character-Library
 ```
 
+## Fully Compatible with Tagmojis
+
+```text
+https://github.com/ayvencore/Tagmojis
+```
+
 ## Blury Thumbnails?
 
 Please follow this guide from the Moonlit Echoes theme to fix your blury thumbnails:
