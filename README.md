@@ -53,6 +53,10 @@ Please follow this guide from the Moonlit Echoes theme to fix your blury thumbna
 https://github.com/RivelleDays/SillyTavern-MoonlitEchoesTheme?tab=readme-ov-file#2-update-to-sillytavernconfigyaml-for-thumbnail-settings
 ```
 
+## Support Me
+
+Like what I'm doing? Consider supporting me on [Kofi](https://ko-fi.com/ayvencore)
+
 ## Notes
 
 - Descriptions prefer `Creator's Notes` data from the character card.
