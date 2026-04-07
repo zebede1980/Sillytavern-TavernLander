@@ -12,6 +12,8 @@ const DEFAULT_SETTINGS = {
     favorites: {},
     creatorLinks: {},
     overrides: {},
+    showRecentChats: true,
+    recentChatsCount: 10,
 };
 
 const SORT_OPTIONS = [
@@ -566,6 +568,26 @@ function render() {
     const selectedCharacter = getSelectedCharacter();
     const { items, totalPages, totalCharacters } = getPagedCharacters(state.filteredCharacters);
 
+    let recentChatsHtml = '';
+    let recentCharacters = [];
+    if (settings.showRecentChats) {
+        recentCharacters = [...state.characters]
+            .filter(c => c.lastChattedAt > 0)
+            .sort((a, b) => b.lastChattedAt - a.lastChattedAt)
+            .slice(0, settings.recentChatsCount);
+
+        if (recentCharacters.length > 0) {
+            recentChatsHtml = `
+                <div class="acl-recent-chats-section" style="margin-top: 2rem; border-top: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.1)); padding-top: 2rem;">
+                    <h2 style="text-align: center; margin-bottom: 1.5rem;">Recent Chats</h2>
+                    <section class="acl-grid">
+                        ${recentCharacters.map(renderCard).join('')}
+                    </section>
+                </div>
+            `;
+        }
+    }
+
     root.innerHTML = `
         <div class="acl-backdrop"></div>
         <div class="acl-page">
@@ -627,6 +649,8 @@ function render() {
 
             ${renderPagination(totalPages)}
 
+            ${recentChatsHtml}
+
             <button type="button" class="acl-scroll-top" data-action="scroll-top" aria-label="Scroll to top">Top</button>
         </div>
 
@@ -638,7 +662,8 @@ function render() {
         nextPage.scrollTop = state.pageScrollTop;
     }
 
-    void queueVisibleTokenCounts(items, context);
+    const allVisibleItems = [...items, ...recentCharacters];
+    void queueVisibleTokenCounts(allVisibleItems, context);
 }
 
 function renderCard(character) {
@@ -1884,6 +1909,16 @@ function updateSettingsPanel(wrapper) {
         enabledInput.checked = Boolean(settings.enabled);
     }
 
+    const recentInput = wrapper.querySelector('[data-acl-setting="showRecentChats"]');
+    if (recentInput instanceof HTMLInputElement) {
+        recentInput.checked = Boolean(settings.showRecentChats);
+    }
+
+    const countInput = wrapper.querySelector('[data-acl-setting="recentChatsCount"]');
+    if (countInput instanceof HTMLInputElement) {
+        countInput.value = settings.recentChatsCount;
+    }
+
     const status = wrapper.querySelector('[data-role="landing-status"]');
     if (status instanceof HTMLElement) {
         status.textContent = settings.enabled
@@ -1918,6 +1953,14 @@ function injectSettingsButton() {
                     <input type="checkbox" data-acl-setting="enabled" ${settings.enabled ? 'checked' : ''}>
                     <span>Enable character library landing page</span>
                 </label>
+                <label class="checkbox_label acl-settings-toggle">
+                    <input type="checkbox" data-acl-setting="showRecentChats" ${settings.showRecentChats ? 'checked' : ''}>
+                    <span>Show Recent Chats section below library</span>
+                </label>
+                <label class="acl-settings-toggle" style="display:flex; align-items:center; gap:0.5rem; margin-top:0.5rem; margin-bottom:1rem;">
+                    <span>Number of Recent Chats:</span>
+                    <input type="number" data-acl-setting="recentChatsCount" value="${escapeHtml(settings.recentChatsCount)}" min="1" max="100" style="width:60px;">
+                </label>
                 <p class="acl-settings-copy" data-role="landing-status"></p>
                 <p class="acl-settings-copy">Cards pull tags from SillyTavern's built-in tag system and prefer Creator's Notes for descriptions.</p>
             </div>
@@ -1930,14 +1973,18 @@ function injectSettingsButton() {
             return;
         }
 
-        if (target.dataset.aclSetting !== 'enabled') {
+        if (target.dataset.aclSetting === 'enabled') {
+            settings.enabled = target.checked;
+            if (!settings.enabled) {
+                state.selectedCharacterKey = null;
+                state.openMenuKey = null;
+            }
+        } else if (target.dataset.aclSetting === 'showRecentChats') {
+            settings.showRecentChats = target.checked;
+        } else if (target.dataset.aclSetting === 'recentChatsCount') {
+            settings.recentChatsCount = Math.max(1, parseInt(target.value, 10) || 10);
+        } else {
             return;
-        }
-
-        settings.enabled = target.checked;
-        if (!settings.enabled) {
-            state.selectedCharacterKey = null;
-            state.openMenuKey = null;
         }
         updateSettingsPanel(wrapper);
         await persistSettings();
