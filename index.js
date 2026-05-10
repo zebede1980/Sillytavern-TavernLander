@@ -6,7 +6,8 @@ const TAGMOJIS_BRIDGE_KEY = '__tagmojisBridge';
 const DEFAULT_SETTINGS = {
     enabled: true,
     pageSize: 25,
-    sortBy: 'az',
+    sortBy: 'name',
+    sortOrder: 'asc',
     activeTab: 'all',
     search: '',
     favorites: {},
@@ -17,11 +18,9 @@ const DEFAULT_SETTINGS = {
 };
 
 const SORT_OPTIONS = [
-    { value: 'az', label: 'A-Z' },
-    { value: 'za', label: 'Z-A' },
-    { value: 'recently_added', label: 'Recently Added' },
-    { value: 'added_first', label: 'Added First' },
-    { value: 'recently_chatted', label: 'Recently Chatted' },
+    { value: 'name', label: 'Name' },
+    { value: 'date_added', label: 'Date Added' },
+    { value: 'recently_chatted', label: 'Last Chatted' },
 ];
 
 const PAGE_SIZE_OPTIONS = [12, 24, 48, 96];
@@ -385,22 +384,27 @@ function normalizeCharacters(context) {
 
 function sortCharacters(characters) {
     const sorted = [...characters];
+    const desc = settings.sortOrder === 'desc';
     switch (settings.sortBy) {
-        case 'za':
-            sorted.sort((a, b) => b.name.localeCompare(a.name));
-            break;
-        case 'recently_added':
-            sorted.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0) || a.name.localeCompare(b.name));
-            break;
-        case 'added_first':
-            sorted.sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0) || a.name.localeCompare(b.name));
+        case 'date_added':
+            sorted.sort((a, b) =>
+                desc
+                    ? (b.addedAt || 0) - (a.addedAt || 0) || a.name.localeCompare(b.name)
+                    : (a.addedAt || 0) - (b.addedAt || 0) || a.name.localeCompare(b.name)
+            );
             break;
         case 'recently_chatted':
-            sorted.sort((a, b) => (b.lastChattedAt || 0) - (a.lastChattedAt || 0) || a.name.localeCompare(b.name));
+            sorted.sort((a, b) =>
+                desc
+                    ? (b.lastChattedAt || 0) - (a.lastChattedAt || 0) || a.name.localeCompare(b.name)
+                    : (a.lastChattedAt || 0) - (b.lastChattedAt || 0) || a.name.localeCompare(b.name)
+            );
             break;
-        case 'az':
+        case 'name':
         default:
-            sorted.sort((a, b) => a.name.localeCompare(b.name));
+            sorted.sort((a, b) =>
+                desc ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name)
+            );
             break;
     }
     return sorted;
@@ -619,13 +623,22 @@ function render() {
                         ${state.searchDraft ? '<button type="button" class="acl-search-clear" data-action="clear-search" aria-label="Clear search">&times;</button>' : ''}
                     </div>
                 </form>
-                <div class="acl-topbar-item acl-topbar-item--sort acl-compact-field">
+                <div class="acl-topbar-item acl-topbar-item--sort">
                     <label class="acl-topbar-label" for="acl-library-sort">Sort</label>
-                    <select id="acl-library-sort" name="sortBy" class="acl-topbar-control">
-                        ${SORT_OPTIONS.map((option) => `
-                            <option value="${option.value}" ${option.value === settings.sortBy ? 'selected' : ''}>${option.label}</option>
-                        `).join('')}
-                    </select>
+                    <div class="acl-sort-row acl-topbar-control">
+                        <select id="acl-library-sort" name="sortBy">
+                            ${SORT_OPTIONS.map((option) => `
+                                <option value="${option.value}" ${option.value === settings.sortBy ? 'selected' : ''}>${option.label}</option>
+                            `).join('')}
+                        </select>
+                        <button
+                            type="button"
+                            class="acl-sort-order-btn"
+                            data-action="toggle-sort-order"
+                            aria-label="${settings.sortOrder === 'asc' ? 'Ascending — click to switch to descending' : 'Descending — click to switch to ascending'}"
+                            title="${settings.sortOrder === 'asc' ? 'Ascending' : 'Descending'}"
+                        >${settings.sortOrder === 'asc' ? '&#8593;' : '&#8595;'}</button>
+                    </div>
                 </div>
                 <div class="acl-topbar-item acl-topbar-item--show acl-compact-field">
                     <label class="acl-topbar-label" for="acl-library-page-size">Show</label>
@@ -1150,6 +1163,7 @@ function renderModal(character) {
                     </div>
                     <div class="acl-modal-header-actions">
                         <button type="button" class="acl-secondary" data-action="open-native-edit" data-character-key="${escapeHtml(character.key)}">Open in ST</button>
+                        <button type="button" class="acl-secondary" data-action="export-character" data-character-key="${escapeHtml(character.key)}">Export PNG</button>
                         <button type="button" class="acl-secondary" data-action="toggle-favorite" data-character-key="${escapeHtml(character.key)}">${character.favorite ? 'Unfavourite' : 'Favourite'}</button>
                         <button type="button" class="acl-danger" data-action="delete-character" data-character-key="${escapeHtml(character.key)}">Delete</button>
                         <button type="button" class="acl-secondary" data-action="close-modal">Close</button>
@@ -1165,7 +1179,11 @@ function renderModal(character) {
                     ${isOverview ? `
                         <div class="acl-modal-layout">
                             <div class="acl-modal-image-panel">
-                                ${character.avatar ? `<img class="acl-modal-image" src="${escapeHtml(character.avatar)}" alt="${escapeHtml(character.name)}">` : '<div class="acl-modal-image acl-modal-image--empty"></div>'}
+                                ${character.avatar ? `
+                                    <button type="button" class="acl-modal-image-btn" data-action="open-lightbox" data-character-key="${escapeHtml(character.key)}" aria-label="View full image of ${escapeHtml(character.name)}">
+                                        <img class="acl-modal-image" src="${escapeHtml(character.avatar)}" alt="${escapeHtml(character.name)}">
+                                    </button>
+                                ` : '<div class="acl-modal-image acl-modal-image--empty"></div>'}
                                 <button type="button" class="acl-primary acl-modal-chat" data-action="quick-chat" data-character-key="${escapeHtml(character.key)}">Chat</button>
                                 ${(creatorName || creatorLink) ? `
                                     <section class="acl-modal-side-section acl-modal-origin-panel">
@@ -1560,6 +1578,13 @@ async function onRootClick(event) {
             await persistSettings();
             scheduleRender();
             break;
+        case 'toggle-sort-order':
+            settings.sortOrder = settings.sortOrder === 'asc' ? 'desc' : 'asc';
+            state.page = 1;
+            state.openMenuKey = null;
+            await persistSettings();
+            scheduleRender();
+            break;
         case 'close-modal':
             if (actionElement.classList.contains('acl-modal-backdrop')) {
                 if (event.target === actionElement) {
@@ -1593,6 +1618,14 @@ async function onRootClick(event) {
                 await openNativeCharacterEditor(character);
             }
             break;
+        case 'open-lightbox':
+            if (character?.avatar) {
+                openLightbox(character);
+            }
+            break;
+        case 'close-lightbox':
+            closeLightbox();
+            break;
         case 'quick-chat':
             if (character) {
                 await openCharacterChat(character);
@@ -1606,6 +1639,11 @@ async function onRootClick(event) {
         case 'delete-character':
             if (character) {
                 await deleteCharacter(character);
+            }
+            break;
+        case 'export-character':
+            if (character) {
+                await exportCharacterPng(character);
             }
             break;
         case 'add-edit-tag':
@@ -1813,6 +1851,50 @@ function getFormHeaders(context = getContextSafe()) {
     return Object.fromEntries(headers.entries());
 }
 
+function openLightbox(character) {
+    const existing = document.getElementById('acl-lightbox');
+    if (existing) {
+        existing.remove();
+    }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'acl-lightbox';
+    overlay.className = 'acl-lightbox';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', `${character.name} full image`);
+    overlay.innerHTML = `
+        <div class="acl-lightbox-backdrop" data-action="close-lightbox"></div>
+        <div class="acl-lightbox-content">
+            <img class="acl-lightbox-img" src="${escapeHtml(character.avatar)}" alt="${escapeHtml(character.name)}">
+            <button type="button" class="acl-lightbox-close" data-action="close-lightbox" aria-label="Close">&times;</button>
+        </div>
+    `;
+
+    overlay.addEventListener('click', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) {
+            return;
+        }
+        if (target.dataset.action === 'close-lightbox' || target.classList.contains('acl-lightbox-backdrop')) {
+            closeLightbox();
+        }
+    });
+
+    overlay.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            closeLightbox();
+        }
+    });
+
+    document.body.appendChild(overlay);
+    overlay.focus();
+}
+
+function closeLightbox() {
+    document.getElementById('acl-lightbox')?.remove();
+}
+
 function notifySuccess(message, title = EXTENSION_TITLE) {
     if (typeof globalThis.toastr?.success === 'function') {
         globalThis.toastr.success(message, title, {
@@ -1949,6 +2031,47 @@ async function deleteCharacter(character) {
         notifySuccess(`${character.name} was deleted.`, 'Character deleted');
     } catch (error) {
         notifyError(normalizeString(error?.message) || 'Request failed while deleting the character.', 'Delete failed');
+    }
+}
+
+async function exportCharacterPng(character) {
+    const context = getContextSafe();
+    const avatarUrl = normalizeString(character.raw?.avatar ?? character.raw?.avatar_url ?? character.key);
+    if (!avatarUrl) {
+        notifyError('Missing avatar identifier for this character.', 'Export failed');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/characters/export', {
+            method: 'POST',
+            headers: getJsonHeaders(context),
+            body: JSON.stringify({ format: 'png', avatar_url: avatarUrl }),
+            cache: 'no-cache',
+        });
+
+        if (!response.ok) {
+            notifyError(await readResponseError(response), 'Export failed');
+            return;
+        }
+
+        const blob = await response.blob();
+        const filename = avatarUrl.endsWith('.png') ? avatarUrl : `${character.name}.png`;
+        const url = URL.createObjectURL(blob);
+        try {
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = filename;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+        } finally {
+            URL.revokeObjectURL(url);
+        }
+
+        notifySuccess(`${character.name} exported.`, 'Character exported');
+    } catch (error) {
+        notifyError(normalizeString(error?.message) || 'Request failed while exporting the character.', 'Export failed');
     }
 }
 
