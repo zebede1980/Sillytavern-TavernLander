@@ -1398,3 +1398,68 @@ body.acl-landing-active #sheld {
     background: rgba(40, 40, 48, 0.95);
     border-color: rgba(255, 255, 255, 0.36);
 }
+
+/* ── Image blur toggle ── */
+
+.acl-images-blurred .acl-card-image {
+    filter: blur(18px);
+    transform: scale(1.06); /* hide edge artifacts from blur */
+}
+
+.acl-blur-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 1rem 1.25rem;
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--acl-accent) 16%, var(--acl-surface) 84%);
+    border: 2px solid color-mix(in srgb, var(--acl-accent) 60%, transparent 40%);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--acl-accent) 20%, transparent), var(--acl-shadow);
+    text-align: center;
+}
+
+.acl-blur-banner-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+    flex: 0 0 auto;
+}
+
+.acl-blur-banner-text {
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--acl-text);
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.acl-blur-reveal-btn {
+    flex: 0 0 auto;
+    padding: 0.65rem 1.4rem;
+    border-radius: 12px;
+    border: 2px solid color-mix(in srgb, var(--acl-accent) 70%, transparent 30%);
+    background: color-mix(in srgb, var(--acl-accent) 24%, var(--acl-surface) 76%);
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: background-color 120ms ease, border-color 120ms ease, transform 80ms ease;
+}
+
+.acl-blur-reveal-btn:hover {
+    background: color-mix(in srgb, var(--acl-accent) 36%, var(--acl-surface) 64%);
+    border-color: color-mix(in srgb, var(--acl-accent) 90%, transparent 10%);
+    transform: scale(1.03);
+}
+
+.acl-blur-reveal-btn:active {
+    transform: scale(0.98);
+}
+
+.acl-blur-reveal-btn:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--acl-accent) 72%, white 28%);
+    outline-offset: 3px;
+}

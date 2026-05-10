@@ -53,6 +53,7 @@ let state = {
     tokenCountPending: new Set(),
     characterChats: {},
     characterChatsPending: new Set(),
+    imagesBlurred: true,
 };
 
 function log(...args) {
@@ -671,7 +672,15 @@ function render() {
 
             ${renderPagination(totalPages)}
 
-            <section class="acl-grid">
+            ${state.imagesBlurred ? `
+                <div class="acl-blur-banner">
+                    <span class="acl-blur-banner-icon">&#128065;</span>
+                    <span class="acl-blur-banner-text">Character images are hidden</span>
+                    <button type="button" class="acl-blur-reveal-btn" data-action="toggle-blur">Reveal Images</button>
+                </div>
+            ` : ''}
+
+            <section class="acl-grid ${state.imagesBlurred ? 'acl-images-blurred' : ''}">
                 ${items.length ? items.map(renderCard).join('') : `
                     <div class="acl-empty">
                         <h2>No characters matched</h2>
@@ -1583,6 +1592,10 @@ async function onRootClick(event) {
             state.page = 1;
             state.openMenuKey = null;
             await persistSettings();
+            scheduleRender();
+            break;
+        case 'toggle-blur':
+            state.imagesBlurred = !state.imagesBlurred;
             scheduleRender();
             break;
         case 'close-modal':
