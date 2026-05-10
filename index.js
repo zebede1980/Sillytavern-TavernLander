@@ -52,6 +52,8 @@ let state = {
     topInset: 48,
     tokenCounts: {},
     tokenCountPending: new Set(),
+    characterChats: {},
+    characterChatsPending: new Set(),
 };
 
 function log(...args) {
@@ -262,10 +264,22 @@ function getPersonality(character) {
         ?? character?.description
         ?? character?.desc
         ?? character?.data?.desc
-        ?? character?.data?.personality
+    );
+}
+
+function getPersonalitySummary(character) {
+    return normalizeString(
+        character?.data?.personality
         ?? character?.personality
         ?? character?.char_persona
         ?? character?.data?.char_persona
+    );
+}
+
+function getScenario(character) {
+    return normalizeString(
+        character?.data?.scenario
+        ?? character?.scenario
     );
 }
 
@@ -319,6 +333,8 @@ function normalizeCharacters(context) {
         const version = getCharacterVersion(character);
         const firstMessage = getFirstMessage(character);
         const personality = getPersonality(character);
+        const personalitySummary = getPersonalitySummary(character);
+        const scenario = getScenario(character);
 
         return {
             key,
@@ -331,6 +347,8 @@ function normalizeCharacters(context) {
             version,
             firstMessage,
             personality,
+            personalitySummary,
+            scenario,
             avatar: getAvatarUrl(character, context),
             tags,
             favorite: Boolean(settings.favorites?.[key] ?? character?.data?.extensions?.fav ?? character?.fav),
@@ -357,6 +375,8 @@ function normalizeCharacters(context) {
                 version,
                 stripHtml(firstMessage),
                 personality,
+                personalitySummary,
+                scenario,
                 ...tags.map((tag) => tag.name),
             ].join(' ').toLowerCase(),
         };
@@ -664,6 +684,10 @@ function render() {
 
     const allVisibleItems = [...items, ...recentCharacters];
     void queueVisibleTokenCounts(allVisibleItems, context);
+
+    if (selectedCharacter && state.modalTab === 'overview' && !(selectedCharacter.key in state.characterChats)) {
+        void fetchCharacterChats(selectedCharacter, context);
+    }
 }
 
 function renderCard(character) {
@@ -954,6 +978,129 @@ function renderTextBlockContent(value, { allowHtml = false, enableMessageFormatt
     return renderRichBlocks(rawValue, { enableMessageFormatting, highlightQuotes });
 }
 
+function formatChatDate(value) {
+    const epoch = toEpoch(value);
+    if (!epoch) {
+        return '';
+    }
+    const date = new Date(epoch);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffDays === 0) {
+        return 'Today';
+    }
+    if (diffDays === 1) {
+        return 'Yesterday';
+    }
+    if (diffDays < 7) {
+        return `${diffDays} days ago`;
+    }
+    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function parseChatFileBaseName(filename) {
+    return normalizeString(filename).replace(/\.jsonl?$/i, '');
+}
+
+async function fetchCharacterChats(character, context = getContextSafe()) {
+    const key = character?.key;
+    if (!key || state.characterChatsPending.has(key)) {
+        return;
+    }
+
+    const avatarUrl = normalizeString(character.raw?.avatar ?? character.raw?.avatar_url ?? key);
+    if (!avatarUrl) {
+        state.characterChats[key] = [];
+        return;
+    }
+
+    state.characterChatsPending.add(key);
+    try {
+        const response = await fetch('/api/characters/chats', {
+            method: 'POST',
+            headers: getJsonHeaders(context),
+            body: JSON.stringify({ avatar_url: avatarUrl }),
+            cache: 'no-cache',
+        });
+
+        if (response.ok) {
+            const chats = await response.json();
+            state.characterChats[key] = Array.isArray(chats) ? chats : [];
+        } else {
+            state.characterChats[key] = [];
+        }
+    } catch (error) {
+        log('Failed to fetch character chats', error);
+        state.characterChats[key] = [];
+    } finally {
+        state.characterChatsPending.delete(key);
+    }
+
+    if (state.selectedCharacterKey === key && state.modalTab === 'overview') {
+        scheduleRender();
+    }
+}
+
+function renderCharacterChatsPanel(character) {
+    const key = character?.key;
+    const isPending = state.characterChatsPending.has(key);
+    const chats = state.characterChats[key];
+
+    if (isPending || chats === undefined) {
+        return `
+            <section class="acl-modal-side-section acl-character-chats-panel">
+                <h3>Recent Chats</h3>
+                <p class="acl-empty-copy">Loading chats&hellip;</p>
+            </section>
+        `;
+    }
+
+    if (!chats.length) {
+        return `
+            <section class="acl-modal-side-section acl-character-chats-panel">
+                <h3>Recent Chats</h3>
+                <p class="acl-empty-copy">No saved chats found.</p>
+            </section>
+        `;
+    }
+
+    const sorted = [...chats]
+        .sort((a, b) => toEpoch(b.last_mes) - toEpoch(a.last_mes))
+        .slice(0, 8);
+
+    return `
+        <section class="acl-modal-side-section acl-character-chats-panel">
+            <h3>Recent Chats</h3>
+            <ul class="acl-chat-list">
+                ${sorted.map((chat) => {
+                    const chatFile = parseChatFileBaseName(chat.file_name || '');
+                    const dateLabel = formatChatDate(chat.last_mes || chat.create_date);
+                    const msgCount = Number.isInteger(chat.chat_items) ? chat.chat_items : null;
+                    const preview = normalizeString(stripHtml(chat.mes || '')).slice(0, 80);
+                    return `
+                        <li class="acl-chat-item">
+                            <div class="acl-chat-item-meta">
+                                ${dateLabel ? `<span class="acl-chat-item-date">${escapeHtml(dateLabel)}</span>` : ''}
+                                ${msgCount !== null ? `<span class="acl-chat-item-count">${msgCount} msg${msgCount !== 1 ? 's' : ''}</span>` : ''}
+                            </div>
+                            ${preview ? `<p class="acl-chat-item-preview">${escapeHtml(preview)}&hellip;</p>` : ''}
+                            <button
+                                type="button"
+                                class="acl-secondary acl-chat-resume-btn"
+                                data-action="resume-chat"
+                                data-character-key="${escapeHtml(character.key)}"
+                                data-chat-file="${escapeHtml(chatFile)}"
+                            >Resume</button>
+                        </li>
+                    `;
+                }).join('')}
+            </ul>
+        </section>
+    `;
+}
+
 function renderCollapsibleSection(title, bodyHtml, emptyText, extraClass = '') {
     const sectionClass = ['acl-collapsible', extraClass].filter(Boolean).join(' ');
 
@@ -979,6 +1126,8 @@ function renderModal(character) {
     const descriptionHtml = renderTextBlockContent(character.description, { allowHtml: true });
     const firstMessageHtml = renderTextBlockContent(character.firstMessage, { enableMessageFormatting: true, highlightQuotes: true });
     const personalityHtml = renderTextBlockContent(character.personality, { allowHtml: true });
+    const personalitySummaryHtml = renderTextBlockContent(character.personalitySummary, { allowHtml: true });
+    const scenarioHtml = renderTextBlockContent(character.scenario, { allowHtml: true });
     const creatorName = normalizeString(character.creator);
     const creatorLink = normalizeString(character.creatorLink);
     const creatorSource = creatorLink
@@ -1035,15 +1184,34 @@ function renderModal(character) {
                                             : '<span class="acl-tag acl-tag--muted">No tags added yet</span>'}
                                     </div>
                                 </section>
+                                ${renderCharacterChatsPanel(character)}
                             </div>
                             <div class="acl-modal-details">
                                 ${renderCollapsibleSection('Creator\'s Notes', descriptionHtml, 'No creator notes yet.', 'acl-modal-copy-section')}
-                                ${renderCollapsibleSection('First message', firstMessageHtml, 'No first message found.', 'acl-modal-copy-section')}
                                 ${renderCollapsibleSection('Description', personalityHtml, 'No description set.', 'acl-modal-copy-section')}
+                                ${personalitySummaryHtml ? renderCollapsibleSection('Personality', personalitySummaryHtml, '', 'acl-modal-copy-section') : ''}
+                                ${scenarioHtml ? renderCollapsibleSection('Scenario', scenarioHtml, '', 'acl-modal-copy-section') : ''}
+                                ${renderCollapsibleSection('First Message', firstMessageHtml, 'No first message found.', 'acl-modal-copy-section')}
                             </div>
                         </div>
                     ` : `
                         <form class="acl-edit-form" data-submit-action="save-edit" data-character-key="${escapeHtml(character.key)}" autocomplete="off">
+                            <label>
+                                <span>Description</span>
+                                <textarea name="personality" rows="6">${escapeHtml(character.personality)}</textarea>
+                            </label>
+                            <label>
+                                <span>Personality</span>
+                                <textarea name="personalitySummary" rows="4">${escapeHtml(character.personalitySummary)}</textarea>
+                            </label>
+                            <label>
+                                <span>Scenario</span>
+                                <textarea name="scenario" rows="4">${escapeHtml(character.scenario)}</textarea>
+                            </label>
+                            <label>
+                                <span>First Message</span>
+                                <textarea name="firstMessage" rows="4">${escapeHtml(character.firstMessage)}</textarea>
+                            </label>
                             <label>
                                 <span>Creator's Notes</span>
                                 <textarea name="description" rows="4">${escapeHtml(character.description)}</textarea>
@@ -1059,14 +1227,6 @@ function renderModal(character) {
                             <label>
                                 <span>Creator link</span>
                                 <input type="url" name="creatorLink" value="${escapeHtml(character.creatorLink)}" placeholder="https://...">
-                            </label>
-                            <label>
-                                <span>First message</span>
-                                <textarea name="firstMessage" rows="4">${escapeHtml(character.firstMessage)}</textarea>
-                            </label>
-                            <label>
-                                <span>Description</span>
-                                <textarea name="personality" rows="4">${escapeHtml(character.personality)}</textarea>
                             </label>
                             ${renderEditTagEditor(character)}
                             <div class="acl-edit-actions">
@@ -1438,6 +1598,11 @@ async function onRootClick(event) {
                 await openCharacterChat(character);
             }
             break;
+        case 'resume-chat':
+            if (character) {
+                await resumeSpecificChat(character, actionElement.getAttribute('data-chat-file') || '');
+            }
+            break;
         case 'delete-character':
             if (character) {
                 await deleteCharacter(character);
@@ -1517,6 +1682,34 @@ async function openCharacterChat(character) {
     }
 
     console.warn(`[${EXTENSION_NAME}] No compatible chat-open API was found.`);
+}
+
+async function resumeSpecificChat(character, chatFileName) {
+    if (!chatFileName) {
+        await openCharacterChat(character);
+        return;
+    }
+
+    const context = getContextSafe();
+    const rawWithChat = { ...character.raw, chat: chatFileName };
+    const candidateMethods = [
+        typeof context?.openCharacterChat === 'function' ? () => context.openCharacterChat(rawWithChat) : null,
+        typeof globalThis.openCharacterChat === 'function' ? () => globalThis.openCharacterChat(rawWithChat) : null,
+    ].filter(Boolean);
+
+    for (const invoke of candidateMethods) {
+        try {
+            await invoke();
+            state.selectedCharacterKey = null;
+            scheduleRender();
+            return;
+        } catch (error) {
+            log('Resume specific chat attempt failed, trying fallback', error);
+        }
+    }
+
+    // Fallback: open character's most recent chat
+    await openCharacterChat(character);
 }
 
 async function openNativeCharacterEditor(character) {
@@ -1716,6 +1909,7 @@ function removeCharacterFromLocalState(character, context) {
     delete settings.overrides[character.key];
     delete state.tokenCounts[character.key];
     state.tokenCountPending.delete(character.key);
+    delete state.characterChats[character.key];
 }
 
 async function deleteCharacter(character) {
@@ -1804,6 +1998,8 @@ async function saveEditForm(form) {
         creatorLink: normalizeString(formData.get('creatorLink')),
         firstMessage: normalizeString(formData.get('firstMessage')),
         personality: normalizeString(formData.get('personality')),
+        personalitySummary: normalizeString(formData.get('personalitySummary')),
+        scenario: normalizeString(formData.get('scenario')),
     };
 
     const tagNames = parseTagInputValue(formData.get('tags'));
@@ -1831,6 +2027,8 @@ async function saveEditForm(form) {
                 creatorcomment: override.description,
                 first_mes: override.firstMessage,
                 description: override.personality,
+                personality: override.personalitySummary,
+                scenario: override.scenario,
                 creator: override.creator,
                 character_version: override.version,
                 tags: tagNames,
@@ -1838,6 +2036,8 @@ async function saveEditForm(form) {
                     creator_notes: override.description,
                     first_mes: override.firstMessage,
                     description: override.personality,
+                    personality: override.personalitySummary,
+                    scenario: override.scenario,
                     creator: override.creator,
                     character_version: override.version,
                     tags: tagNames,
@@ -1857,6 +2057,7 @@ async function saveEditForm(form) {
         upsertBuiltInTags(characterKey, tagNames);
         delete state.tokenCounts[characterKey];
         state.tokenCountPending.delete(characterKey);
+        delete state.characterChats[characterKey];
         await persistSettings(context);
 
         if (typeof context?.getCharacters === 'function') {
