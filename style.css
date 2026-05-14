@@ -1113,6 +1113,10 @@ body.acl-landing-active #sheld {
     .acl-tag-editor-controls {
         grid-template-columns: 1fr;
     }
+
+    .acl-modal-image-panel .acl-modal-chat {
+        order: -1;
+    }
 }
 
 @media (max-width: 860px) {

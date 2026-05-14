@@ -350,6 +350,7 @@ function normalizeCharacters(context) {
             personalitySummary,
             scenario,
             avatar: getAvatarUrl(character, context),
+            fullAvatar: character?.avatar || character?.avatar_url || '',
             tags,
             favorite: Boolean(settings.favorites?.[key] ?? character?.data?.extensions?.fav ?? character?.fav),
             creatorLink: getCreatorLink(key, character),
@@ -1879,7 +1880,7 @@ function openLightbox(character) {
     overlay.innerHTML = `
         <div class="acl-lightbox-backdrop" data-action="close-lightbox"></div>
         <div class="acl-lightbox-content">
-            <img class="acl-lightbox-img" src="${escapeHtml(character.avatar)}" alt="${escapeHtml(character.name)}">
+            <img class="acl-lightbox-img" src="${escapeHtml(character.fullAvatar || character.avatar)}" alt="${escapeHtml(character.name)}">
             <button type="button" class="acl-lightbox-close" data-action="close-lightbox" aria-label="Close">&times;</button>
         </div>
     `;
