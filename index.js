@@ -283,6 +283,19 @@ function getScenario(character) {
     );
 }
 
+function getFullAvatarUrl(character) {
+    const rawAvatar = normalizeString(character?.avatar || character?.avatar_url || '');
+    if (!rawAvatar) {
+        return '';
+    }
+    // Already an absolute URL (e.g. external CDN)
+    if (/^https?:\/\//i.test(rawAvatar)) {
+        return rawAvatar;
+    }
+    // SillyTavern serves full-quality character images at /characters/<filename>
+    return `/characters/${rawAvatar}`;
+}
+
 function getAvatarUrl(character, context) {
     const rawAvatar = character?.avatar || character?.avatar_url || '';
     const formatter = context?.getThumbnailUrl ?? globalThis.getThumbnailUrl;
@@ -350,7 +363,7 @@ function normalizeCharacters(context) {
             personalitySummary,
             scenario,
             avatar: getAvatarUrl(character, context),
-            fullAvatar: character?.avatar || character?.avatar_url || '',
+            fullAvatar: getFullAvatarUrl(character),
             tags,
             favorite: Boolean(settings.favorites?.[key] ?? character?.data?.extensions?.fav ?? character?.fav),
             creatorLink: getCreatorLink(key, character),
