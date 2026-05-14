@@ -735,7 +735,7 @@ function renderCard(character) {
         <article class="acl-card" data-character-key="${escapeHtml(character.key)}">
             <div class="acl-card-image-wrap">
                 <button type="button" class="acl-card-button acl-card-button--image" data-action="open-modal" data-character-key="${escapeHtml(character.key)}">
-                    ${character.avatar ? `<img class="acl-card-image" src="${escapeHtml(character.avatar)}" alt="${escapeHtml(character.name)}">` : '<div class="acl-card-image acl-card-image--empty"></div>'}
+                    ${(character.fullAvatar || character.avatar) ? `<img class="acl-card-image" src="${escapeHtml(character.fullAvatar || character.avatar)}" alt="${escapeHtml(character.name)}">` : '<div class="acl-card-image acl-card-image--empty"></div>'}
                 </button>
                 ${character.favorite ? '<span class="acl-card-favorite is-favorite">&#9733;</span>' : ''}
                 <div class="acl-card-menu-anchor">
@@ -1202,9 +1202,9 @@ function renderModal(character) {
                     ${isOverview ? `
                         <div class="acl-modal-layout">
                             <div class="acl-modal-image-panel">
-                                ${character.avatar ? `
+                                ${(character.fullAvatar || character.avatar) ? `
                                     <button type="button" class="acl-modal-image-btn" data-action="open-lightbox" data-character-key="${escapeHtml(character.key)}" aria-label="View full image of ${escapeHtml(character.name)}">
-                                        <img class="acl-modal-image" src="${escapeHtml(character.avatar)}" alt="${escapeHtml(character.name)}">
+                                        <img class="acl-modal-image" src="${escapeHtml(character.fullAvatar || character.avatar)}" alt="${escapeHtml(character.name)}">
                                     </button>
                                 ` : '<div class="acl-modal-image acl-modal-image--empty"></div>'}
                                 <button type="button" class="acl-primary acl-modal-chat" data-action="quick-chat" data-character-key="${escapeHtml(character.key)}">Chat</button>
