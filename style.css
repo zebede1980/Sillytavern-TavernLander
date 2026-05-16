@@ -413,6 +413,10 @@ body.acl-landing-active #sheld {
     display: block;
 }
 
+.acl-card-button--image {
+    height: 100%;
+}
+
 .acl-card-button--body {
     flex: 1 1 auto;
 }
